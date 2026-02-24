@@ -1,0 +1,28 @@
+# systemd service unit for the SilverSprints Node.js backend.
+# Install: sudo cp silversprint.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable --now silversprint
+#
+# Adjust User= and WorkingDirectory= to match your install path.
+
+[Unit]
+Description=SilverSprints Race Server
+After=network.target
+# Restart even if the Arduino is not yet connected (serial auto-detects)
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/silversprint-node
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=silversprint
+
+# Allow access to /dev/ttyACM* and /dev/ttyUSB* (Arduino serial ports)
+# Requires the 'pi' user to be in the 'dialout' group (see setup.sh)
+
+[Install]
+WantedBy=multi-user.target

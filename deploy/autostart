@@ -1,0 +1,33 @@
+# LXDE-pi autostart file for SilverSprint kiosk mode (Raspberry Pi OS with X11 desktop).
+#
+# Install:
+#   mkdir -p ~/.config/lxsession/LXDE-pi
+#   cp autostart ~/.config/lxsession/LXDE-pi/autostart
+#
+# This file replaces the default LXDE autostart. The Node.js server is
+# managed by systemd (silversprint.service) and should already be running
+# before the desktop session starts. Chromium waits 3 seconds to ensure the
+# server is up before opening the page.
+
+# Disable screen blanking / power management (kiosk: screen always on)
+@xset s off
+@xset -dpms
+@xset s noblank
+
+# Hide the mouse cursor when idle (install: sudo apt-get install unclutter)
+@unclutter -idle 1 -root
+
+# Launch Chromium in kiosk mode pointing at the local SilverSprints server.
+# --kiosk              full-screen, no address bar, no tabs
+# --noerrdialogs       suppress crash dialogs
+# --disable-infobars   no "Chrome is being controlled by…" banner
+# --no-first-run       skip the first-run wizard
+# --check-for-update-interval=31536000  disable auto-update nagging
+@bash -c "sleep 3 && chromium-browser \
+  --kiosk \
+  --noerrdialogs \
+  --disable-infobars \
+  --no-first-run \
+  --check-for-update-interval=31536000 \
+  --autoplay-policy=no-user-gesture-required \
+  http://localhost:3000"

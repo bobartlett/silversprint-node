@@ -1,0 +1,15 @@
+{
+  "name": "silversprint",
+  "version": "1.0.0",
+  "description": "SilverSprint racing display for Raspberry Pi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.0.0"
+  }
+}
