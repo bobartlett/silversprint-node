@@ -47,6 +47,7 @@ class PlayerData {
     this.mph             = 0;
     this.maxMph          = 0;
     this._lastRaceTimeMs = 0;
+    this._lastTickTimeMs = 0;
     this._mphBuffer.reset();
   }
 
@@ -65,15 +66,23 @@ class PlayerData {
     const dtTicks  = this.curRaceTicks - this.lastRaceTicks;
     this._lastRaceTimeMs = curRaceMillis;
 
-    if (dtMillis > 0) {
+    if (dtMillis > 0 && dtTicks > 0) {
+      // Movement detected — compute instantaneous speed and add to average.
       const metersMoved = dtTicks * this.rollerCircumfMm / 1000.0;
       const secsElapsed = dtMillis / 1000.0;
       const kph = (metersMoved / secsElapsed) * 3.6;
       const rawMph = kph * 0.621371;
 
+      this._lastTickTimeMs = curRaceMillis;
       this._mphBuffer.push(rawMph);
       this.mph = this._mphBuffer.getAverage();
       if (this.mph > this.maxMph) this.maxMph = this.mph;
+    } else if (dtTicks === 0 && this._lastTickTimeMs > 0) {
+      // No movement this interval — zero out speed if idle for more than 2 s.
+      if (curRaceMillis - this._lastTickTimeMs > 2000) {
+        this._mphBuffer.reset();
+        this.mph = 0;
+      }
     }
   }
 
