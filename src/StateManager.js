@@ -33,6 +33,7 @@ class StateManager extends EventEmitter {
   }
 
   changeRaceState(newState) {
+    if (newState === this.raceState) return;
     this.raceState = newState;
     this.emit('raceStateChange', newState);
   }

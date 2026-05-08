@@ -38,7 +38,6 @@ class Model {
     this.firmwareVersion       = 'Unknown';
 
     // Race timing
-    this.startTimeMillis       = 0;
     this.elapsedRaceTimeMillis = 0;
   }
 
@@ -67,7 +66,6 @@ class Model {
     for (const player of this.playerData) {
       player.reset();
     }
-    this.startTimeMillis       = 0;
     this.elapsedRaceTimeMillis = 0;
   }
 

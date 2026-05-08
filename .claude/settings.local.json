@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check server.js)",
+      "Bash(node --check src/CsvLogger.js)",
+      "Bash(node --check src/PlayerData.js)",
+      "Bash(node --check src/StateManager.js)",
+      "Bash(node --check src/Model.js)"
+    ]
+  }
+}

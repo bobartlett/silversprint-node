@@ -1,7 +1,7 @@
 'use strict';
 const express = require('express');
 const http    = require('http');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const path    = require('path');
 
 const { stateManager, APP_STATE, RACE_STATE } = require('./src/StateManager');
@@ -56,7 +56,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 function broadcast(msg) {
   const str = JSON.stringify(msg);
   for (const client of wss.clients) {
-    if (client.readyState === 1 /* OPEN */) client.send(str);
+    if (client.readyState === WebSocket.OPEN) client.send(str);
   }
 }
 
@@ -138,18 +138,27 @@ app.post('/api/roster', (req, res) => {
 app.post('/api/settings', (req, res) => {
   const s = req.body;
 
-  if (s.roller_diameter_mm != null) {
-    model.setRollerDiameterMm(s.roller_diameter_mm);
-    // C++ setRollerDiameterMm does NOT recalculate ticks; must call setRaceLengthMeters after.
-    model.setRaceLengthMeters(model.raceLengthMeters);
-  }
+  if (s.roller_diameter_mm != null && s.roller_diameter_mm <= 0)
+    return res.status(400).json({ error: 'roller_diameter_mm must be positive' });
+  if (s.num_racers != null && (s.num_racers < 1 || s.num_racers > 4 || !Number.isInteger(s.num_racers)))
+    return res.status(400).json({ error: 'num_racers must be an integer 1–4' });
+  if (s.race_length_meters != null && s.race_length_meters <= 0)
+    return res.status(400).json({ error: 'race_length_meters must be positive' });
+  if (s.race_time != null && s.race_time <= 0)
+    return res.status(400).json({ error: 'race_time must be positive' });
+
+  if (s.roller_diameter_mm != null) model.setRollerDiameterMm(s.roller_diameter_mm);
   if (s.num_racers         != null) model.numRacers = s.num_racers;
   if (s.race_type          != null) model.raceType  = s.race_type === 0 ? 'DISTANCE' : 'TIME';
-  if (s.race_length_meters != null) model.setRaceLengthMeters(s.race_length_meters);
   if (s.race_time          != null) model.raceLengthMillis = s.race_time * 1000;
   if (s.race_kph           != null) model.useKph    = s.race_kph;
   if (s.log_races          != null) model.logRaces  = s.log_races;
   if (s.fullscreen         != null) config.setAppSetting('fullscreen', s.fullscreen);
+
+  // setRollerDiameterMm must precede setRaceLengthMeters — recalculate ticks when either changes.
+  if (s.roller_diameter_mm != null || s.race_length_meters != null) {
+    model.setRaceLengthMeters(s.race_length_meters ?? model.raceLengthMeters);
+  }
 
   if (s.port != null) serial.selectDevice(s.port);
 
@@ -294,6 +303,7 @@ function _shutdown(signal) {
   serial.stop();
   for (const client of wss.clients) client.terminate();
   server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000);
 }
 
 process.on('SIGINT',  () => _shutdown('SIGINT'));

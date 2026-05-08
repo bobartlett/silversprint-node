@@ -89,6 +89,7 @@ class PlayerData {
       if (curRaceMillis - this._lastTickTimeMs > 2000) {
         this._mphBuffer.reset();
         this.mph = 0;
+        this._lastTickTimeMs = 0;
       }
     }
   }

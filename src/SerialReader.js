@@ -230,7 +230,6 @@ class SerialReader extends EventEmitter {
         else if (args === '2') { this._stateManager.changeRaceState(RACE_STATE.COUNTDOWN_2); }
         else if (args === '1') { this._stateManager.changeRaceState(RACE_STATE.COUNTDOWN_1); }
         else if (args === '0') {
-          model.startTimeMillis = Date.now();
           this._stateManager.changeRaceState(RACE_STATE.COUNTDOWN_GO);
           // Immediately transition to RUNNING (mirrors C++ double-emit)
           this._stateManager.changeRaceState(RACE_STATE.RUNNING);
