@@ -292,6 +292,7 @@ function _shutdown(signal) {
   console.log(`\n[${signal}] Saving config and shutting down…`);
   _saveConfig();
   serial.stop();
+  for (const client of wss.clients) client.terminate();
   server.close(() => process.exit(0));
 }
 

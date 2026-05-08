@@ -68,13 +68,20 @@ class PlayerData {
 
     if (dtMillis > 0 && dtTicks > 0) {
       // Movement detected — compute instantaneous speed and add to average.
+      // Use time since the last tick event, not since the last R: message.
+      // This correctly handles slow speeds where ticks arrive less often than R: messages.
       const metersMoved = dtTicks * this.rollerCircumfMm / 1000.0;
-      const secsElapsed = dtMillis / 1000.0;
-      const kph = (metersMoved / secsElapsed) * 3.6;
-      const rawMph = kph * 0.621371;
+
+      if (this._lastTickTimeMs > 0) {
+        // We have a previous tick to measure from — compute real inter-tick speed.
+        const secsElapsed = (curRaceMillis - this._lastTickTimeMs) / 1000.0;
+        const kph         = (metersMoved / secsElapsed) * 3.6;
+        const rawMph      = kph * 0.621371;
+        this._mphBuffer.push(rawMph);
+      }
+      // First tick of the race: no previous tick time, so skip speed sample entirely.
 
       this._lastTickTimeMs = curRaceMillis;
-      this._mphBuffer.push(rawMph);
       this.mph = this._mphBuffer.getAverage();
       if (this.mph > this.maxMph) this.maxMph = this.mph;
     } else if (dtTicks === 0 && this._lastTickTimeMs > 0) {
