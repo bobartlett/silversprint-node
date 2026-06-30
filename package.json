@@ -27,7 +27,18 @@
       "electron-main.js",
       "server.js",
       "src/**",
-      "public/**"
+      "public/**",
+      "node_modules/**",
+      "package.json",
+      "!node_modules/.cache",
+      "!**/*.map",
+      "!**/*.md",
+      "!dist/**",
+      "!build/**",
+      "!deploy/**",
+      "!test-*.js",
+      "!.claude/**",
+      "!.github/**"
     ],
     "mac": {
       "category": "public.app-category.sports",
