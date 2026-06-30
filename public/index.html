@@ -617,7 +617,7 @@
          onclick="toggleLogRaces()"></div>
 
     <!-- Bottom: version string (from Version.h, ~x=60, y≈1060) -->
-    <span class="s-label" style="left:60px; top:1043px;">SILVERSPRINT VERSION: 0.1.9</span>
+    <span id="app-version" class="s-label" style="left:60px; top:1043px;">SILVERSPRINT VERSION: —</span>
   </div>
 
 
@@ -1225,6 +1225,9 @@ function dispatch(msg) {
       setActiveView(msg.appState  || 'RACE');
       state.raceState = msg.raceState || 'RACE_STOPPED';
       updateStartStopBtn();
+      if (msg.appVersion) {
+        document.getElementById('app-version').textContent = 'SILVERSPRINT VERSION: ' + msg.appVersion;
+      }
       break;
 
     case 'race_update':

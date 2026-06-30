@@ -60,14 +60,17 @@ function broadcast(msg) {
   }
 }
 
+const { version: APP_VERSION } = require('./package.json');
+
 // Send a full snapshot to each browser immediately on connect.
 wss.on('connection', ws => {
   console.log('[WS] Browser connected');
   ws.send(JSON.stringify({
-    type:      'full_state',
-    data:      model.toJSON(),
-    appState:  stateManager.appState,
-    raceState: stateManager.raceState,
+    type:       'full_state',
+    data:       model.toJSON(),
+    appState:   stateManager.appState,
+    raceState:  stateManager.raceState,
+    appVersion: APP_VERSION,
   }));
 });
 
