@@ -74,16 +74,19 @@ class SerialReader extends EventEmitter {
         targetPort = ports.find(p => p.path === this._preferredPortPath);
       }
 
-      // 2. Auto-detect: Arduino shows up as ttyACM* (native USB) or ttyUSB*
-      //    (FTDI) on Linux/RPi. On macOS it's /dev/cu.usbmodem* or /dev/cu.usbserial*.
-      //    Also check the manufacturer string for 'Arduino'.
+      // 2. Auto-detect by manufacturer name or known USB-serial vendor IDs.
+      //    Linux/RPi: ttyACM* (native USB) or ttyUSB* (FTDI/CH340).
+      //    macOS: /dev/cu.usbmodem* or /dev/cu.usbserial*.
+      //    Windows: COM port with manufacturer or vendorId matching common chips:
+      //      2341 = Arduino LLC, 1a86 = CH340 (clones), 10c4 = CP210x, 0403 = FTDI
       if (!targetPort) {
         targetPort = ports.find(p =>
           /arduino/i.test(p.manufacturer ?? '') ||
           /ttyACM/i.test(p.path) ||
           /ttyUSB/i.test(p.path) ||
           /usbmodem/i.test(p.path) ||
-          /usbserial/i.test(p.path)
+          /usbserial/i.test(p.path) ||
+          ['2341', '1a86', '10c4', '0403'].includes((p.vendorId ?? '').toLowerCase())
         );
       }
 
@@ -152,7 +155,7 @@ class SerialReader extends EventEmitter {
       const ports = await SerialPort.list();
       const list  = ports.map(p => ({
         portName:        p.path,
-        portDescription: p.manufacturer ?? p.friendlyName ?? '',
+        portDescription: p.friendlyName ?? p.manufacturer ?? '',
       }));
       model.serialDeviceList = list;
       this.emit('portListUpdated', list);
