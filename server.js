@@ -214,6 +214,7 @@ stateManager.on('raceStateChange', newState => {
   // ── STARTING: configure Arduino and fire the start command ───────────────
   if (newState === RACE_STATE.STARTING) {
     model.resetPlayers();
+    broadcast({ type: 'race_update', data: model.toJSON() });
     if (model.raceType === 'DISTANCE') {
       serial.setDistanceMode();
       serial.setRaceLengthTicks(model.totalRaceTicks);
