@@ -5,7 +5,21 @@
       "Bash(node --check src/CsvLogger.js)",
       "Bash(node --check src/PlayerData.js)",
       "Bash(node --check src/StateManager.js)",
-      "Bash(node --check src/Model.js)"
+      "Bash(node --check src/Model.js)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(gh run *)",
+      "Bash(gh repo *)",
+      "Bash(gh release *)",
+      "Bash(node --check src/SerialReader.js)",
+      "Bash(node -e ' *)",
+      "Bash(node --check /tmp/ss-inline.js)",
+      "Bash(pkill -f \"node server.js\")",
+      "Bash(node --input-type=module --check)",
+      "Bash(node *)"
     ]
   }
 }

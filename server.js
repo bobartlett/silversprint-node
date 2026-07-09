@@ -128,8 +128,8 @@ app.post('/api/roster', (req, res) => {
     return res.status(400).json({ error: 'players must be an array' });
   }
   players.forEach((p, i) => {
-    if (i < 4 && p.name !== undefined) {
-      model.playerData[i].playerName = String(p.name).trim();
+    if (i < 4 && p && typeof p === 'object' && p.name !== undefined) {
+      model.playerData[i].playerName = String(p.name).trim().slice(0, 40);
     }
   });
   const roster = model.playerData.map(p => ({ name: p.playerName, color: p.playerColor }));
@@ -141,14 +141,27 @@ app.post('/api/roster', (req, res) => {
 app.post('/api/settings', (req, res) => {
   const s = req.body;
 
-  if (s.roller_diameter_mm != null && s.roller_diameter_mm <= 0)
-    return res.status(400).json({ error: 'roller_diameter_mm must be positive' });
-  if (s.num_racers != null && (s.num_racers < 1 || s.num_racers > 4 || !Number.isInteger(s.num_racers)))
+  const isPosNum = v => typeof v === 'number' && Number.isFinite(v) && v > 0;
+
+  if (s.roller_diameter_mm != null && !isPosNum(s.roller_diameter_mm))
+    return res.status(400).json({ error: 'roller_diameter_mm must be a positive number' });
+  if (s.num_racers != null &&
+      (typeof s.num_racers !== 'number' || !Number.isInteger(s.num_racers) || s.num_racers < 1 || s.num_racers > 4))
     return res.status(400).json({ error: 'num_racers must be an integer 1–4' });
-  if (s.race_length_meters != null && s.race_length_meters <= 0)
-    return res.status(400).json({ error: 'race_length_meters must be positive' });
-  if (s.race_time != null && s.race_time <= 0)
-    return res.status(400).json({ error: 'race_time must be positive' });
+  if (s.race_length_meters != null && !isPosNum(s.race_length_meters))
+    return res.status(400).json({ error: 'race_length_meters must be a positive number' });
+  if (s.race_time != null && !isPosNum(s.race_time))
+    return res.status(400).json({ error: 'race_time must be a positive number' });
+  if (s.race_type != null && s.race_type !== 0 && s.race_type !== 1)
+    return res.status(400).json({ error: 'race_type must be 0 or 1' });
+  if (s.race_kph != null && typeof s.race_kph !== 'boolean')
+    return res.status(400).json({ error: 'race_kph must be a boolean' });
+  if (s.log_races != null && typeof s.log_races !== 'boolean')
+    return res.status(400).json({ error: 'log_races must be a boolean' });
+  if (s.fullscreen != null && typeof s.fullscreen !== 'boolean')
+    return res.status(400).json({ error: 'fullscreen must be a boolean' });
+  if (s.port != null && typeof s.port !== 'string')
+    return res.status(400).json({ error: 'port must be a string' });
 
   if (s.roller_diameter_mm != null) model.setRollerDiameterMm(s.roller_diameter_mm);
   if (s.num_racers         != null) model.numRacers = s.num_racers;
@@ -291,11 +304,19 @@ serial.on('portListUpdated', ports => {
   broadcast({ type: 'port_list', ports });
 });
 
+// Arduino reported its mock-mode state — reflect it in the browser badge.
+stateManager.on('mockMode', on => {
+  broadcast({ type: 'mock_mode', on });
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`SilverSprints → http://localhost:${PORT}`);
+// Default 0.0.0.0 for the Pi/kiosk (a separate Chromium connects over the LAN);
+// the Electron build sets HOST=127.0.0.1 so it isn't exposed on the network.
+const HOST = process.env.HOST || '0.0.0.0';
+server.listen(PORT, HOST, () => {
+  console.log(`SilverSprints → http://localhost:${PORT} (bound ${HOST})`);
   serial.start();
 });
 

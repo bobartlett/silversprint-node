@@ -31,9 +31,13 @@ Press **START** to begin a mock race. Press **STOP** or click the winner modal t
 
 | Icon | View | Shortcut |
 |------|------|----------|
-| Flag | Race | click |
-| Roster | Enter player names | click |
-| Gear | Settings | click |
+| Flag | Race | click or `1` |
+| Roster | Enter player names | click or `2` |
+| Gear | Settings | click or `3` |
+
+**Keyboard shortcuts** (ignored while typing in a field): `1`/`2`/`3` switch views,
+`Space` starts/stops the race, `m` toggles mock mode. A yellow **MOCK** badge appears
+top-center while mock mode is active.
 
 ### Race view
 
@@ -151,7 +155,20 @@ silversprint-node/
 │   └── utils.js            # millisToTimestamp() helper.
 │
 ├── public/
-│   ├── index.html          # The entire frontend — one file, ~1350 lines.
+│   ├── index.html          # Markup only — links css/app.css + js/main.js.
+│   ├── css/
+│   │   └── app.css         # All styles (fixed 1920×1080 coordinate space).
+│   ├── js/                 # ES modules — no build step, native browser modules.
+│   │   ├── main.js         # Entry: wires views, keyboard, initial render, WS.
+│   │   ├── state.js        # Client state store + applyModel().
+│   │   ├── api.js          # apiPost() + navigate().
+│   │   ├── ws.js           # WebSocket manager + message dispatch().
+│   │   ├── util.js         # millisToTimestamp(), rescale().
+│   │   ├── race-view.js    # Race view rendering + ring scheduling.
+│   │   ├── rings.js        # Canvas progress-ring renderer.
+│   │   ├── settings-view.js # Settings controls.
+│   │   ├── roster-view.js  # Roster name inputs.
+│   │   └── overlays.js     # Countdown + winner modal.
 │   ├── fonts/              # UbuntuMono (R, B, RI, BI) — copied from Cinder assets.
 │   └── img/                # Background, dial, countdown, logo images.
 │
@@ -217,8 +234,8 @@ They must match — both use the same constant:
 // src/Model.js  (server-side, sent to browser in JSON)
 const PLAYER_COLORS = ['#b92140', '#1c9185', '#169254', '#e1b909'];
 
-// public/index.html  (client-side, used for CSS and Canvas drawing)
-const PLAYER_COLORS = ['#b92140', '#1c9185', '#169254', '#e1b909'];
+// public/js/state.js  (client-side, used for CSS and Canvas drawing)
+export const PLAYER_COLORS = ['#b92140', '#1c9185', '#169254', '#e1b909'];
 ```
 
 Edit both arrays to the same values and restart the server.
@@ -245,9 +262,21 @@ Environment=PORT=8080
 
 Then update the Chromium URL in `deploy/autostart` to match.
 
+### Network binding
+
+The server binds to `0.0.0.0` by default so a separate Chromium (on the Pi or another
+machine on the LAN) can connect. To restrict it to loopback only, set `HOST=127.0.0.1`:
+
+```bash
+HOST=127.0.0.1 npm start
+```
+
+The Electron desktop build (`npm run electron`) sets this automatically — its bundled
+server is reachable only from the app itself, not the network.
+
 ### Adjust ring animation tail length
 
-The tail length is proportional to speed. Edit `public/index.html`, function `drawRings()`:
+The tail length is proportional to speed. Edit `public/js/rings.js`, function `drawRings()`:
 
 ```js
 // tailLen mirrors: lmap(mph, 0, 30, 0, 0.30), clamp(0, 0.50)
@@ -260,7 +289,7 @@ Increase `0.30` for a longer tail at the same speed. Increase `0.50` to allow th
 
 ### Edit the race UI layout
 
-All layout coordinates in `public/index.html` are annotated with the original C++ source they came from (e.g. `/* RaceView.cpp Rectf(834,105,...) */`). Pixel values are in the fixed 1920×1080 coordinate space — the viewport scaling is handled automatically.
+All layout coordinates in `public/css/app.css` are annotated with the original C++ source they came from (e.g. `/* RaceView.cpp Rectf(834,105,...) */`). Pixel values are in the fixed 1920×1080 coordinate space — the viewport scaling is handled automatically.
 
 ### Enable race logging permanently
 

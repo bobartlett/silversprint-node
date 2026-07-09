@@ -1,6 +1,6 @@
 {
   "name": "silversprint",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "SilverSprint racing display for Raspberry Pi",
   "main": "electron-main.js",
   "scripts": {

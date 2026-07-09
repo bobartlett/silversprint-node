@@ -18,18 +18,26 @@ class SerialReader extends EventEmitter {
     this._preferredPortPath  = null;   // set by selectDevice()
     this._reconnectTimer     = null;
     this._portListTimer      = null;
+    this._versionTimer       = null;
+    this._stopped            = false;  // set by stop() — halts the reconnect loop
+    this._disconnecting      = false;  // dedupes paired error+close disconnect events
+    this._lastPortListJson   = null;   // dedupes identical port-list broadcasts
+    this._lastRaceUpdateEmit = 0;      // throttles high-frequency race broadcasts
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
   start() {
+    this._stopped = false;
     this._scheduleReconnect();
     // Keep the browser's port-picker dropdown up to date
     this._portListTimer = setInterval(() => this._updatePortList(), 2000);
   }
 
   stop() {
+    this._stopped = true;
     clearTimeout(this._reconnectTimer);
+    clearTimeout(this._versionTimer);
     clearInterval(this._portListTimer);
     if (this._port && this._port.isOpen) {
       this._port.close();
@@ -57,12 +65,15 @@ class SerialReader extends EventEmitter {
   // ── Connection management ───────────────────────────────────────────────────
 
   _scheduleReconnect() {
+    if (this._stopped) return;
     clearTimeout(this._reconnectTimer);
     this._reconnectTimer = setTimeout(() => this._tryConnect(), RECONNECT_DELAY_MS);
   }
 
   async _tryConnect() {
+    if (this._stopped) return;
     if (this._connected) return;
+    this._disconnecting = false;
 
     try {
       const ports = await SerialPort.list();
@@ -138,11 +149,24 @@ class SerialReader extends EventEmitter {
     model.firmwareVersion       = 'Unknown';
     this._stateManager.emit('arduinoConnected', model.selectedPortName);
     // Request firmware version after a short settle delay (mirrors C++ 2s timeline call)
-    setTimeout(() => this.getVersion(), VERSION_DELAY_MS);
+    clearTimeout(this._versionTimer);
+    this._versionTimer = setTimeout(() => this.getVersion(), VERSION_DELAY_MS);
   }
 
   _onDisconnect() {
+    // A port 'error' and the following 'close' both land here for one disconnect.
+    if (this._disconnecting) return;
+    this._disconnecting = true;
+
     this._connected = false;
+    clearTimeout(this._versionTimer);
+    // Release the (possibly still-open) handle before reconnecting, or the OS
+    // keeps the device locked and the next open() fails.
+    if (this._port && this._port.isOpen) {
+      this._port.close(() => {});
+    }
+    this._port   = null;
+    this._parser = null;
     model.serialConnectionState = 'DISCONNECTED';
     this._stateManager.emit('arduinoDisconnected');
     this._scheduleReconnect();
@@ -157,6 +181,11 @@ class SerialReader extends EventEmitter {
         portName:        p.path,
         portDescription: p.friendlyName ?? p.manufacturer ?? '',
       }));
+      // Skip the broadcast when nothing changed — avoids waking every client
+      // (and collapsing an open port dropdown) twice a second.
+      const listJson = JSON.stringify(list);
+      if (listJson === this._lastPortListJson) return;
+      this._lastPortListJson = listJson;
       model.serialDeviceList = list;
       this.emit('portListUpdated', list);
     } catch (_) {
@@ -194,6 +223,8 @@ class SerialReader extends EventEmitter {
 
       // ── Race progress: R:tick0,tick1,tick2,tick3,raceMillis ────────────────
       case 'R': {
+        // Ignore stale progress arriving after a stop/finish.
+        if (this._stateManager.raceState !== RACE_STATE.RUNNING) break;
         const parts = args.split(',');
         if (parts.length < 5) {
           console.warn('[Serial] Malformed R: message:', args);
@@ -204,8 +235,14 @@ class SerialReader extends EventEmitter {
           model.playerData[i].updateRaceTicks(parseInt(parts[i], 10), raceMillis);
         }
         model.elapsedRaceTimeMillis = raceMillis;
-        // Emit for WebSocket broadcast (high frequency — ~100Hz from Arduino)
-        this._stateManager.emit('raceUpdate', model.toJSON());
+        // Model math runs on every message; throttle the broadcast to ~30Hz.
+        // Final values are still exact — racerFinished / race_finished carry the
+        // authoritative snapshot at the end of the race.
+        const now = Date.now();
+        if (now - this._lastRaceUpdateEmit >= 33) {
+          this._lastRaceUpdateEmit = now;
+          this._stateManager.emit('raceUpdate', model.toRaceJSON());
+        }
         break;
       }
 
@@ -214,6 +251,9 @@ class SerialReader extends EventEmitter {
       case '1F':
       case '2F':
       case '3F': {
+        // Ignore stale finish messages arriving after a stop — they must not
+        // re-complete an idle race and pop the winner modal.
+        if (this._stateManager.raceState !== RACE_STATE.RUNNING) break;
         const racerId     = parseInt(cmd[0], 10);
         const finishMs    = parseInt(args, 10);
         const finalTicks  = model.playerData[racerId].getCurrentRaceTicks();
@@ -258,9 +298,14 @@ class SerialReader extends EventEmitter {
         console.log(`[Serial] Race length confirmed: ${args} ticks`);
         break;
 
-      case 'M':
+      case 'M': {
+        // Arduino echoes its mock-mode state. Parse permissively — treat
+        // 1/on/true (any case) as enabled, everything else as disabled.
+        const on = /^\s*(1|on|true)\s*$/i.test(args);
         console.log(`[Serial] Mock mode: ${args}`);
+        this._stateManager.emit('mockMode', on);
         break;
+      }
 
       default:
         if (cmd.startsWith('ERROR')) {

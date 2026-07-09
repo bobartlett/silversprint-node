@@ -1,0 +1,455 @@
+/* ── Fonts (UbuntuMono from local assets, mirrors Cinder font loading) ── */
+@font-face {
+  font-family: 'UbuntuMono';
+  src: url('../fonts/UbuntuMono-R.ttf') format('truetype');
+  font-weight: 400; font-style: normal;
+}
+@font-face {
+  font-family: 'UbuntuMono';
+  src: url('../fonts/UbuntuMono-B.ttf') format('truetype');
+  font-weight: 700; font-style: normal;
+}
+@font-face {
+  font-family: 'UbuntuMono';
+  src: url('../fonts/UbuntuMono-RI.ttf') format('truetype');
+  font-weight: 400; font-style: italic;
+}
+@font-face {
+  font-family: 'UbuntuMono';
+  src: url('../fonts/UbuntuMono-BI.ttf') format('truetype');
+  font-weight: 700; font-style: italic;
+}
+
+/* ── Reset + kiosk base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: 'UbuntuMono', monospace;
+}
+
+/* ── Root app container — always 1920×1080, scaled to fit viewport.
+      JavaScript applies: translate(offsetX, offsetY) scale(s)
+      This exactly mirrors the C++ getCenteredFit(getWindowBounds()) logic. ── */
+#app {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  transform-origin: top left;
+  overflow: hidden;
+}
+
+/* ── View panels — only one visible at a time ── */
+.view {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  display: none;
+}
+.view.active { display: block; }
+
+/* ── Full-screen overlays (countdown, winner modal) ── */
+.overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  pointer-events: none;
+}
+.overlay.interactive { pointer-events: auto; }
+.overlay.hidden { display: none; }
+
+/* ════════════════════════════════════════════
+   RACE VIEW
+   All coordinates from RaceView.cpp / StartStopButton.cpp / NavBarView.cpp
+   ════════════════════════════════════════════ */
+
+#race-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+}
+
+/* White timer box: Rectf(834, 105, 834+260, 105+185) */
+#timer-box {
+  position: absolute;
+  left: 834px; top: 105px;
+  width: 260px; height: 185px;
+  background: #fff;
+}
+
+/* White horizontal rule: Rectf(60, 133, 1870, 135) */
+#horiz-rule {
+  position: absolute;
+  left: 60px; top: 133px;
+  width: 1810px; height: 2px;
+  background: #fff;
+}
+
+/* Timer text: vec2(867, 154), UbuntuMono Bold 50px, black */
+#timer-display {
+  position: absolute;
+  left: 867px; top: 115px;
+  width: 220px;
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 700;
+  font-size: 50px;
+  color: #000;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Dial background image: dial_bg_y.png centered at (960, 612) */
+#dial-bg {
+  position: absolute;
+  left: 960px; top: 612px;
+  transform: translate(-50%, -50%);
+}
+
+/* Progress rings canvas: 776×776 centered at (960, 612)
+   innerRad=187, outerRad=388 → canvas needs 2×388 = 776px square */
+#rings-canvas {
+  position: absolute;
+  left: 572px; top: 224px;   /* 960-388, 612-388 */
+  width: 776px; height: 776px;
+}
+
+/* Player stat rows
+   Origin: vec2(0, 390 + 102*i), then translated by +150 in x
+   Each row: 1670×68, spaced 102px apart
+   Text rendered at UbuntuMono Regular 35px */
+#player-rows {
+  position: absolute;
+  left: 150px; top: 390px;
+}
+.player-row {
+  position: absolute;
+  left: 0;
+  width: 1670px; height: 68px;
+}
+.player-row[data-racer="0"] { top: 0; }
+.player-row[data-racer="1"] { top: 102px; }
+.player-row[data-racer="2"] { top: 204px; }
+.player-row[data-racer="3"] { top: 306px; }
+
+/* Filled background when racing, outline when not — Phase 4c fills this in */
+.player-row-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1670px; height: 68px;
+}
+/* Vertical divider at x=1462-7=1455 (7px wide), Phase 4c fills color */
+.player-row-divider {
+  position: absolute;
+  left: 1455px; top: 7px;
+  width: 7px; height: 54px;
+}
+
+/* Name: left: 20px, baseline at 44px → top approx 9px for 35px font */
+.player-name {
+  position: absolute;
+  left: 20px; top: 9px;
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 400;
+  font-size: 35px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 600px;
+}
+
+/* Speed: right-aligned to x=1430, so right edge at 1430 from row left */
+.player-speed {
+  position: absolute;
+  right: 240px; top: 9px;  /* 1670-1430 = 240px from right */
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 400;
+  font-size: 35px;
+  color: #fff;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Metric (time/distance): x=1485 from row left */
+.player-metric {
+  position: absolute;
+  left: 1485px; top: 9px;
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 400;
+  font-size: 35px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* OpenSprints logo: vec2(1920,1080) - vec2(50,50) - logoSize (bottom-right) */
+#logo {
+  position: absolute;
+  right: 50px; bottom: 50px;
+}
+
+/* Start/Stop button: BaseButton::set(1700, 23, 1874, 71) → 174×48 */
+#start-stop-btn {
+  position: absolute;
+  left: 1700px; top: 23px;
+  width: 174px; height: 48px;
+  background: rgb(22, 146, 84);
+  border: none;
+  cursor: pointer;
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 400;
+  font-size: 35px;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#start-stop-btn:hover { background: #fff; }
+#start-stop-btn.running { background: rgb(28, 145, 133); }
+
+
+/* ════════════════════════════════════════════
+   COUNTDOWN OVERLAY — Phase 4e
+   Images centered at (960,612). Animation mirrors
+   CountDownGfx.cpp: scale 0→1 (0.3s), hold, scale 1→2 + fade (0.3s).
+   Total per-number duration: 1.0s.
+   ════════════════════════════════════════════ */
+
+@keyframes cd-pop {
+  /* alpha: 0→1 (0–50%), hold (50–70%), 1→0 (70–100%) */
+  /* scale: 0→1 (0–30%), hold (30–70%),  1→2 (70–100%) */
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.0); }
+  30%  { opacity: 1; transform: translate(-50%,-50%) scale(1.0); }
+  50%  { opacity: 1; transform: translate(-50%,-50%) scale(1.0); }
+  70%  { opacity: 1; transform: translate(-50%,-50%) scale(1.0); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(2.0); }
+}
+.cd-image {
+  position: absolute;
+  left: 960px; top: 612px;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  transform-origin: center;
+  pointer-events: none;
+}
+.cd-image.animating {
+  animation: cd-pop 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+
+/* ════════════════════════════════════════════
+   WINNER MODAL OVERLAY — Phase 4e
+   WinnerModal.png: 1127×802
+   Centered: left=(1920-1127)/2=396, top=(1080-802)/2=139
+   Text coordinates are relative to the modal image upper-left.
+   ════════════════════════════════════════════ */
+
+#overlay-winner {
+  background: rgba(0,0,0,0);
+  transition: background 1s ease-out;
+}
+#overlay-winner.show { background: rgba(0,0,0,0.5); }
+
+/* Modal image at exact position (no CSS centering — we know the size) */
+#winner-modal-img {
+  position: absolute;
+  left: 396px; top: 139px;
+  width: 1127px; height: 802px;
+  opacity: 0;
+  transition: opacity 1s ease-out;
+}
+#overlay-winner.show #winner-modal-img { opacity: 1; }
+
+/* Content container overlays the modal image exactly */
+#winner-content {
+  position: absolute;
+  left: 396px; top: 139px;
+  width: 1127px; height: 802px;
+  font-family: 'UbuntuMono', monospace;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 1s ease-out;
+}
+#overlay-winner.show #winner-content { opacity: 1; }
+
+/* Winner name: centered around x=550 in modal, baseline ≈ y=288 */
+#wc-name {
+  position: absolute;
+  left: 0; top: 248px;
+  width: 1100px; text-align: center;
+  font-size: 35px; color: #000;
+}
+/* Race label centered around x=441, baseline ≈ y=319 */
+#wc-label {
+  position: absolute;
+  left: 0; top: 284px;
+  width: 882px; text-align: center;
+  font-size: 25px; font-weight: 700; font-style: italic; color: #000;
+}
+/* Main metric: x=356, baseline ≈ y=362 → top≈327 */
+#wc-metric {
+  position: absolute;
+  left: 356px; top: 327px;
+  font-size: 35px; color: #fff;
+}
+/* Top speed: x=584, same row */
+#wc-speed {
+  position: absolute;
+  left: 584px; top: 327px;
+  font-size: 35px; color: #fff;
+}
+/* Runner-up boxes container: y=688 from modal top */
+#wc-runners {
+  position: absolute;
+  top: 688px; left: 0;
+  width: 1127px; height: 120px;
+}
+
+
+/* ════════════════════════════════════════════
+   SETTINGS VIEW — Phase 4a
+   Column 1: x=443 (roller, racers, port, connection)
+   Column 2: x=1043 (race type, length, units, logging)
+   Controls use PLAYER_COLORS[0] = #b92140
+   ════════════════════════════════════════════ */
+
+#view-settings, #view-roster { background: transparent; }
+
+.s-label {
+  position: absolute;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 25px; font-weight: 700; font-style: italic;
+  color: #8c8c8c; white-space: nowrap;
+}
+.s-field {
+  position: absolute;
+  background: #b92140; color: #000; border: none; outline: none;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 70px; font-weight: 400;
+  padding: 0 0 0 20px; box-sizing: border-box;
+}
+.s-field:focus { background: #cc2447; }
+.s-select {
+  position: absolute;
+  background: #b92140; color: #000; border: none; outline: none;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 30px; font-weight: 400;
+  padding-left: 14px; box-sizing: border-box; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+.s-stepper {
+  position: absolute;
+  background: #b92140; color: #000; border: none; cursor: pointer;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 52px; font-weight: 400;
+  width: 50px; height: 50px;
+  padding: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+.s-stepper:hover { background: #cc2447; }
+.s-checkbox {
+  position: absolute;
+  width: 44px; height: 44px;
+  border: 7px solid #b92140;
+  box-sizing: border-box; pointer-events: none;
+}
+.s-checkbox.checked { background: #b92140; }
+.s-radio {
+  position: absolute;
+  width: 44px; height: 44px;
+  border: 7px solid #b92140;
+  cursor: pointer; box-sizing: border-box;
+}
+.s-radio.checked { background: #b92140; }
+.s-toggle { position: absolute; display: flex; height: 100px; }
+.s-toggle-side {
+  flex: 0 0 215px; height: 100px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 70px; font-weight: 400;
+  cursor: pointer;
+  border: 4px solid #b92140; color: #b92140; background: transparent;
+  box-sizing: border-box;
+}
+.s-toggle-side + .s-toggle-side { border-left: none; }
+.s-toggle-side.active { background: #b92140; color: #000; }
+
+/* ════════════════════════════════════════════
+   ROSTER VIEW — Phase 4b
+   Inputs at x=574, circles (r=62) centered at x=472
+   ════════════════════════════════════════════ */
+
+.r-name-input {
+  position: absolute;
+  left: 574px; width: 910px; height: 150px;
+  border: none; outline: none;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 75px; font-weight: 400;
+  padding: 15px 0 0 30px; box-sizing: border-box;
+  color: #000;
+}
+.r-circle {
+  position: absolute;
+  left: 410px;            /* 472 - 62 */
+  width: 124px; height: 124px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 75px; font-weight: 400;
+  box-sizing: border-box;
+}
+
+
+/* ════════════════════════════════════════════
+   NAV BAR  — always on top of all views
+   Icon positions from NavBarView.cpp:
+     flag:     (47,  28)
+     roster:   (134, 28)
+     settings: (237, 28)
+   ════════════════════════════════════════════ */
+
+#navbar {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
+  pointer-events: none;   /* let clicks through to views */
+  z-index: 100;
+}
+.nav-icon {
+  position: absolute;
+  top: 28px;
+  opacity: 0.4;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.15s;
+}
+.nav-icon:hover        { opacity: 0.8; }
+.nav-icon.active       { opacity: 1.0; }
+#nav-race     { left: 47px;  }
+#nav-roster   { left: 134px; }
+#nav-settings { left: 237px; }
+
+
+/* ════════════════════════════════════════════
+   FALSE START flash — brief red pulse on the offending racer's row.
+   Applied to .player-row-bg, self-removed on animationend.
+   ════════════════════════════════════════════ */
+@keyframes fs-flash {
+  0%, 100% { box-shadow: inset 0 0 0 7px #ff2d2d; }
+  50%      { box-shadow: inset 0 0 0 14px #ff2d2d; }
+}
+.player-row-bg.false-start { animation: fs-flash 1s ease-in-out; }
+
+/* ════════════════════════════════════════════
+   MOCK badge — shown top-center while the Arduino reports mock mode.
+   ════════════════════════════════════════════ */
+#mock-badge {
+  position: absolute;
+  left: 0; top: 8px;
+  width: 1920px; text-align: center;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 25px; font-weight: 700; font-style: italic;
+  color: #e1b909;
+  pointer-events: none;
+  z-index: 200;
+}

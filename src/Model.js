@@ -77,6 +77,15 @@ class Model {
     return true;
   }
 
+  // Slim per-tick snapshot — only the fields the race view reads on every R:
+  // message. Avoids re-serializing settings + device list ~100×/sec.
+  toRaceJSON() {
+    return {
+      players:               this.playerData.map(p => p.toJSON()),
+      elapsedRaceTimeMillis: this.elapsedRaceTimeMillis,
+    };
+  }
+
   // Full snapshot — sent to the browser on connection and after settings changes.
   toJSON() {
     return {

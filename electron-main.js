@@ -43,6 +43,9 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    // The desktop build talks to its own bundled server over loopback only —
+    // don't expose it on the network. Must be set before requiring the server.
+    process.env.HOST = process.env.HOST || '127.0.0.1';
     require('./server.js');
     await waitForServer();
     createWindow();
