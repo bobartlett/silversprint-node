@@ -72,6 +72,39 @@ All changes are applied immediately and saved to `~/.config/silversprint/setting
 
 ---
 
+## Arduino firmware
+
+The board is an Arduino Uno R3 running the stock SilverSprint `ss_basic`
+sketch (reports `V:SS_v0.1.7`). A copy lives in `firmware/ss_basic/` so the
+rig can always be restored without hunting for the original repo.
+
+**Symptoms of dead firmware:** Settings shows firmware `Unknown`, and starts
+fail with the red "START FAILED — CHECK ARDUINO CONNECTION" banner even after
+replugging the board (the board still shows up as a serial port — USB
+enumeration is handled by a separate chip and keeps working).
+
+**To reflash:**
+
+```bash
+npm run flash:firmware        # or: ./firmware/flash.sh [port]
+```
+
+The script stops a running server (it holds the port), finds `arduino-cli`
+(PATH or the copy bundled inside Arduino IDE 2), compiles, and uploads.
+Afterwards restart the server and confirm Settings shows `SS_v0.1.7`.
+
+**Why firmware dies:** every time the server (re)opens the serial port the
+Uno auto-resets and spends ~1 s in its STK500 bootloader. Bytes that arrive
+in that window are interpreted as programming commands — `d` (the
+set-distance-mode command) is literally STK500's "program flash page" opcode
+— so an unlucky race start fired right after a reconnect can corrupt the
+sketch while leaving the bootloader intact. The server now guards against
+this (sends are held for 2.5 s after a port open, and a start watchdog
+recovers if the board doesn't respond), but if it ever happens again the
+reflash above is the fix.
+
+---
+
 ## Deploying to Raspberry Pi
 
 ### Prerequisites

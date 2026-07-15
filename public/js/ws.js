@@ -108,6 +108,16 @@ function dispatch(msg) {
       document.getElementById('mock-badge').style.display = msg.on ? '' : 'none';
       break;
 
+    case 'start_failed': {
+      // Server watchdog gave up waiting for the Arduino's countdown.
+      const banner = document.getElementById('warn-banner');
+      banner.textContent = 'START FAILED — CHECK ARDUINO CONNECTION';
+      banner.classList.remove('hidden');
+      clearTimeout(banner._hideTimer);
+      banner._hideTimer = setTimeout(() => banner.classList.add('hidden'), 6000);
+      break;
+    }
+
     default:
       // ignore unknown messages
   }

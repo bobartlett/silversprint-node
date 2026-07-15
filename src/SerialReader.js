@@ -7,6 +7,7 @@ const { RACE_STATE }     = require('./StateManager');
 const BAUD_RATE          = 115200;
 const RECONNECT_DELAY_MS = 1000;
 const VERSION_DELAY_MS   = 2000;  // Wait 2s after connect before requesting version (mirrors C++)
+const BOOT_GRACE_MS      = 2500;  // Uno auto-resets on port open; hold sends while it boots
 
 class SerialReader extends EventEmitter {
   constructor(stateManager) {
@@ -15,6 +16,7 @@ class SerialReader extends EventEmitter {
     this._port               = null;
     this._parser             = null;
     this._connected          = false;
+    this._connectedAtMs      = 0;      // when the port last opened (boot-grace timing)
     this._preferredPortPath  = null;   // set by selectDevice()
     this._reconnectTimer     = null;
     this._portListTimer      = null;
@@ -133,6 +135,7 @@ class SerialReader extends EventEmitter {
       });
 
       this._connected = true;
+      this._connectedAtMs = Date.now();
       model.selectedPortName = targetPort.path;
       console.log(`[Serial] Connected on ${targetPort.path}`);
       this._onConnect();
@@ -321,6 +324,16 @@ class SerialReader extends EventEmitter {
   _send(msg) {
     if (!this._connected || !this._port?.isOpen) {
       console.warn('[Serial] Not connected, cannot send:', msg);
+      return;
+    }
+    // Opening the port resets the Uno, which then sits in its STK500
+    // bootloader for ~1s. Bytes sent in that window are lost — or worse,
+    // misread as programming commands that can corrupt the sketch ('d' is
+    // STK_PROG_PAGE). Defer sends until the board has had time to boot;
+    // same-deadline timers fire in order, so command ordering is preserved.
+    const wait = this._connectedAtMs + BOOT_GRACE_MS - Date.now();
+    if (wait > 0) {
+      setTimeout(() => this._send(msg), wait);
       return;
     }
     // Arduino expects messages terminated with '\n'

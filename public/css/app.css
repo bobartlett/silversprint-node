@@ -453,3 +453,18 @@ html, body {
   pointer-events: none;
   z-index: 200;
 }
+
+/* ════════════════════════════════════════════
+   Warning banner — top-center, shown briefly when a start fails.
+   ════════════════════════════════════════════ */
+#warn-banner {
+  position: absolute;
+  left: 0; top: 48px;
+  width: 1920px; text-align: center;
+  font-family: 'UbuntuMono', monospace;
+  font-size: 30px; font-weight: 700;
+  color: #b92140;
+  pointer-events: none;
+  z-index: 200;
+}
+#warn-banner.hidden { display: none; }

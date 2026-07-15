@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "flash:firmware": "bash firmware/flash.sh",
     "electron": "electron .",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",

@@ -221,21 +221,57 @@ function _logRaceFinish() {
 // Start button (via /api/command → state change) and the Arduino's own
 // kiosk G button (via SerialReader → state change) go through identical code.
 
+// ── Start watchdog ────────────────────────────────────────────────────────
+// If the Arduino misses the start commands (it auto-resets whenever the port
+// opens and spends ~2s booting, or the link is flaky), no CD:3 ever comes
+// back and the race would wedge in RACE_STARTING forever with every START
+// press silently ignored. Resend the start once; if the countdown still
+// doesn't begin, fall back to RACE_STOPPED and tell the browsers.
+const START_WATCHDOG_MS = 4000;  // > serial boot-grace (2.5s) + first CD (~1s)
+let _startWatchdog = null;
+let _startAttempts = 0;
+
+function _sendStartCommands() {
+  _startAttempts++;
+  if (model.raceType === 'DISTANCE') {
+    serial.setDistanceMode();
+    serial.setRaceLengthTicks(model.totalRaceTicks);
+  } else {
+    serial.setTimeMode();
+    serial.setRaceDuration(Math.round(model.raceLengthMillis / 1000));
+  }
+  serial.startRace();
+
+  clearTimeout(_startWatchdog);
+  _startWatchdog = setTimeout(() => {
+    if (stateManager.raceState !== RACE_STATE.STARTING) return;
+    if (_startAttempts < 2) {
+      console.warn('[Watchdog] No countdown from Arduino — resending start commands');
+      _sendStartCommands();
+    } else {
+      console.error('[Watchdog] Start failed twice — returning to RACE_STOPPED');
+      broadcast({ type: 'start_failed' });
+      stateManager.changeRaceState(RACE_STATE.STOPPED);
+    }
+  }, START_WATCHDOG_MS);
+}
+
 stateManager.on('raceStateChange', newState => {
   broadcast({ type: 'race_state', state: newState });
+
+  // Any state but STARTING means the countdown began (or the race was
+  // stopped) — either way the start watchdog is no longer needed.
+  if (newState !== RACE_STATE.STARTING && _startWatchdog) {
+    clearTimeout(_startWatchdog);
+    _startWatchdog = null;
+  }
 
   // ── STARTING: configure Arduino and fire the start command ───────────────
   if (newState === RACE_STATE.STARTING) {
     model.resetPlayers();
     broadcast({ type: 'race_update', data: model.toJSON() });
-    if (model.raceType === 'DISTANCE') {
-      serial.setDistanceMode();
-      serial.setRaceLengthTicks(model.totalRaceTicks);
-    } else {
-      serial.setTimeMode();
-      serial.setRaceDuration(Math.round(model.raceLengthMillis / 1000));
-    }
-    serial.startRace();
+    _startAttempts = 0;
+    _sendStartCommands();
     if (model.logRaces) csvLogger.log(SS_EVENT.RACE_START, '', '', '', '');
   }
 
